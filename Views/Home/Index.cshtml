@@ -1,0 +1,139 @@
+﻿@using LinqQueryBuilder.Sample
+@{
+	ViewBag.Title = "Home Page";
+}
+@section scripts
+{
+	<script type="text/javascript">
+   $(function() {
+       // Handler for .ready() called.
+
+       // Fix for Bootstrap Datepicker
+       $('#filter-builder-panel').on('afterUpdateRuleValue.queryBuilder', function(e, rule) {
+           if (rule.filter.plugin === 'datepicker') {
+               rule.$el.find('.rule-value-container input').datepicker('update');
+           }
+       });
+
+       var tableData = [];
+
+       var filterDefinition = @Html.Raw(ViewBag.FilterDefinition);
+       var customFilters = {
+           condition: 'AND',
+           rules: []
+       };
+       var jqueryQueryBuilder = $('#filter-builder-panel');
+			 if (jqueryQueryBuilder) {
+				 jqueryQueryBuilder.queryBuilder({
+						// plugins: ['bt-tooltip-errors', 'filter-description'],
+						// allow_groups: 0,
+						allow_empty: true,
+						filters: filterDefinition,
+						rules: customFilters,
+						icons: {
+								add_group: 'fa fa-plus-square',
+								add_rule: 'fa fa-plus-circle',
+								remove_group: 'fa fa-minus-square',
+								remove_rule: 'fa fa-minus-circle',
+								error: 'fa fa-exclamation-triangle',
+								sortable: 'fa fa-exclamation-triangle'
+						}
+				 });
+			 }
+				
+       var convertSingleValuesToArray = function (obj) {
+           if (obj != null) {
+               if (obj.hasOwnProperty("value")) {
+                   if (Object.prototype.toString.call(obj.value) !== '[object Array]') {
+                       obj.value = [obj.value];
+                   }
+               }
+               if (obj.hasOwnProperty("rules") && obj.rules != null) {
+                   for (var i = 0; i < obj.rules.length; i++) {
+                       convertSingleValuesToArray(obj.rules[i]);
+                   }
+               }
+           }
+       }
+
+       var getRules = function() {
+           try {
+               var res = jqueryQueryBuilder.queryBuilder('getRules');
+               convertSingleValuesToArray(res);
+               return res;
+           } catch (ex) {
+               return null;
+           }
+       }
+
+       var buildTable;
+       var filterData = function() {
+           $.ajax({
+               type: 'POST',
+               url: "../Home/Index",
+               data: JSON.stringify(getRules()),
+               success: function (returnPayload) {
+                   tableData = returnPayload;
+                   buildTable();
+                   console && console.log ("request succeeded");
+               },
+               error: function (xhr, ajaxOptions, thrownError) {
+                   console && console.log ("request failed");
+               },
+               dataType: "json",
+               contentType: "application/json",
+               processData: false,
+               async: true
+           });
+       }
+
+       $('#filter-builder-apply').on('click', function() {
+           filterData();
+   });
+
+       buildTable = function() {
+           var tbody = $('#data-table tbody'),
+               props = ["FirstName", "LastName", "Birthday", "Age", "Address", "City", "State", "ZipCode"];
+           tbody.empty();
+           $.each(tableData, function(i, reservation) {
+               var tr = $('<tr>');
+               $.each(props, function(i, prop) {
+                   $('<td>').html(reservation[prop]).appendTo(tr);
+               });
+               tbody.append(tr);
+           });
+   };
+
+       filterData();
+   });
+	</script>
+}
+<div class="row">
+	<div class="col-md-12">
+		<h2>IQueryable Filter Builder</h2>
+		<div id="filter-builder-panel"></div>
+		<button type="button" class="btn btn-primary" id="filter-builder-apply">Apply Filter</button>
+	</div>
+</div>
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+<div class="row">
+	<div class="col-md-12">
+		<h2 style="display: flex; justify-content:center;">User List</h2>
+		<table id="data-table" class="table table-striped table-sm table-responsive-sm">
+			<thead>
+				<tr>
+					<th>First Name</th>
+					<th>Last Name</th>
+					<th>Birthday</th>
+					<th>Age</th>
+					<th>Address</th>
+					<th>City</th>
+					<th>State</th>
+					<th>Zip Code</th>
+				</tr>
+			</thead>
+			<tbody></tbody>
+		</table>
+	</div>
+</div>
